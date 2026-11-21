@@ -4,8 +4,6 @@ package loja.modelo.pedido;
 public enum StatusPedido {
     AGUARDANDO_PAGAMENTO("Aguardando pagamento"),
     PAGO("Pago"),
-    ENVIADO("Enviado"),
-    ENTREGUE("Entregue"),
     CANCELADO("Cancelado");
 
     private final String descricao;
@@ -14,7 +12,7 @@ public enum StatusPedido {
         this.descricao = descricao;
     }
 
-    // Texto para exibir nas telas. Para gravar em arquivo name()
+    // Texto para exibir nas telas
     public String getDescricao() {
         return descricao;
     }
