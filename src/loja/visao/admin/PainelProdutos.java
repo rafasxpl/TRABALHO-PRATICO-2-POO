@@ -3,150 +3,178 @@ package loja.visao.admin;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Window;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.RowFilter;
 import javax.swing.SwingUtilities;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.table.TableRowSorter;
 import loja.excecao.LojaException;
 import loja.modelo.produto.Produto;
 import loja.servico.ProdutoServico;
 
-// Painel administrativo de produtos: exibe a tabela e delega ações ao ProdutoServico.
+// Aba de produtos do administrador: lista, busca, cadastra, altera e remove.
+// Não tem regra de negócio: toda validação e toda alteração passam pelo ProdutoServico.
 public class PainelProdutos extends JPanel {
-    private final ProdutoServico servico;
-    private final ProdutoTableModel modeloTabela = new ProdutoTableModel();
-    private final JTable tabela = new JTable(modeloTabela);
+    private static final int COL_NOME = 1;
+    private static final int COL_CATEGORIA = 2;
 
-    private final JButton botaoCadastrar = new JButton("Cadastrar");
-    private final JButton botaoAlterar = new JButton("Alterar");
-    private final JButton botaoRemover = new JButton("Remover");
-    private final JButton botaoAtualizar = new JButton("Atualizar");
+    private final ProdutoServico servico;
+    private final ProdutoTableModel modelo = new ProdutoTableModel();
+    private final JTable tabela = new JTable(modelo);
+    private final TableRowSorter<ProdutoTableModel> ordenador = new TableRowSorter<>(modelo);
+    private final JTextField campoBusca = new JTextField(20);
 
     public PainelProdutos(ProdutoServico servico) {
-        if (servico == null) {
-            throw new IllegalArgumentException("ProdutoServico não pode ser nulo.");
-        }
         this.servico = servico;
-
         montarComponentes();
-        configurarEventos();
-        atualizarTabela();
+        atualizar();
     }
 
-    // Recarrega a tabela com os dados atuais do serviço
-    public void atualizarTabela() {
-        modeloTabela.setProdutos(servico.listar());
-        atualizarEstadoBotoes();
+    // Recarrega a tabela com os produtos do serviço.
+    // Público para a TelaPrincipalAdmin poder chamar ao trocar de aba
+    public void atualizar() {
+        modelo.setProdutos(servico.listar());
     }
+
+    // Montagem da tela
 
     private void montarComponentes() {
         setLayout(new BorderLayout(8, 8));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        tabela.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tabela.setAutoCreateRowSorter(true);
-        tabela.getTableHeader().setReorderingAllowed(false);
+        // Busca por nome ou categoria (consulta)
+        JPanel topo = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        topo.add(new JLabel("Buscar por nome ou categoria:"));
+        topo.add(campoBusca);
 
-        JScrollPane rolagem = new JScrollPane(tabela);
-        add(rolagem, BorderLayout.CENTER);
+        campoBusca.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                filtrar();
+            }
 
-        JPanel painelBotoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        painelBotoes.add(botaoAtualizar);
-        painelBotoes.add(botaoRemover);
-        painelBotoes.add(botaoAlterar);
-        painelBotoes.add(botaoCadastrar);
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                filtrar();
+            }
 
-        add(painelBotoes, BorderLayout.SOUTH);
-
-        atualizarEstadoBotoes();
-    }
-
-    private void configurarEventos() {
-        botaoCadastrar.addActionListener(e -> cadastrarProduto());
-        botaoAlterar.addActionListener(e -> alterarProdutoSelecionado());
-        botaoRemover.addActionListener(e -> removerProdutoSelecionado());
-        botaoAtualizar.addActionListener(e -> atualizarTabela());
-
-        tabela.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                atualizarEstadoBotoes();
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                filtrar();
             }
         });
+
+        tabela.setRowSorter(ordenador);
+        tabela.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tabela.setFillsViewportHeight(true);
+
+        // Duplo clique abre a alteração
+        tabela.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    alterarSelecionado();
+                }
+            }
+        });
+
+        JButton botaoCadastrar = new JButton("Cadastrar");
+        JButton botaoAlterar = new JButton("Alterar");
+        JButton botaoRemover = new JButton("Remover");
+        botaoCadastrar.addActionListener(e -> abrirDialogo(null));
+        botaoAlterar.addActionListener(e -> alterarSelecionado());
+        botaoRemover.addActionListener(e -> removerSelecionado());
+
+        JPanel botoes = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        botoes.add(botaoCadastrar);
+        botoes.add(botaoAlterar);
+        botoes.add(botaoRemover);
+
+        add(topo, BorderLayout.NORTH);
+        add(new JScrollPane(tabela), BorderLayout.CENTER);
+        add(botoes, BorderLayout.SOUTH);
     }
 
-    private void atualizarEstadoBotoes() {
-        boolean temSelecao = tabela.getSelectedRow() != -1;
-        botaoAlterar.setEnabled(temSelecao);
-        botaoRemover.setEnabled(temSelecao);
-    }
+    // Ações
 
-    // Converte a linha da visão (com ordenação/filtro) para o índice real do TableModel
-    private Produto obterProdutoSelecionado() {
-        int linhaVisao = tabela.getSelectedRow();
-        if (linhaVisao == -1) {
-            return null;
+    // Mostra só as linhas cujo nome ou categoria contém o texto digitado
+    private void filtrar() {
+        String texto = campoBusca.getText().trim();
+        if (texto.isEmpty()) {
+            ordenador.setRowFilter(null);
+        } else {
+            ordenador.setRowFilter(
+                    RowFilter.regexFilter("(?i)" + Pattern.quote(texto), COL_NOME, COL_CATEGORIA));
         }
-        int linhaModelo = tabela.convertRowIndexToModel(linhaVisao);
-        return modeloTabela.getProdutoAt(linhaModelo);
     }
 
-    private void cadastrarProduto() {
-        Window janelaPai = SwingUtilities.getWindowAncestor(this);
-        DialogoProduto dialogo = new DialogoProduto(janelaPai, servico, null);
-        dialogo.setVisible(true);
+    // Abre o formulário. Com produto null é cadastro; com produto é alteração
+    private void abrirDialogo(Produto produto) {
+        Window janela = SwingUtilities.getWindowAncestor(this);
+        DialogoProduto dialogo = new DialogoProduto(janela, servico, produto);
+        dialogo.setVisible(true); // diálogo modal: o código só segue quando ele fechar
 
         if (dialogo.foiSalvo()) {
-            atualizarTabela();
+            atualizar();
         }
     }
 
-    private void alterarProdutoSelecionado() {
-        Produto selecionado = obterProdutoSelecionado();
-        if (selecionado == null) {
-            JOptionPane.showMessageDialog(this, "Selecione um produto para alterar.",
-                    "Aviso", JOptionPane.WARNING_MESSAGE);
+    private void alterarSelecionado() {
+        Produto produto = produtoSelecionado();
+        if (produto == null) {
+            avisarSemSelecao();
+            return;
+        }
+        abrirDialogo(produto);
+    }
+
+    private void removerSelecionado() {
+        Produto produto = produtoSelecionado();
+        if (produto == null) {
+            avisarSemSelecao();
             return;
         }
 
-        Window janelaPai = SwingUtilities.getWindowAncestor(this);
-        DialogoProduto dialogo = new DialogoProduto(janelaPai, servico, selecionado);
-        dialogo.setVisible(true);
-
-        if (dialogo.foiSalvo()) {
-            atualizarTabela();
-        }
-    }
-
-    private void removerProdutoSelecionado() {
-        Produto selecionado = obterProdutoSelecionado();
-        if (selecionado == null) {
-            JOptionPane.showMessageDialog(this, "Selecione um produto para remover.",
-                    "Aviso", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        int confirmacao = JOptionPane.showConfirmDialog(
-                this,
-                "Deseja realmente remover o produto \"" + selecionado.getNome() + "\" (código "
-                        + selecionado.getCodigo() + ")?",
-                "Confirmar remoção",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE
-        );
-
-        if (confirmacao != JOptionPane.YES_OPTION) {
+        int resposta = JOptionPane.showConfirmDialog(this,
+                "Remover o produto \"" + produto.getNome() + "\"?",
+                "Confirmar remoção", JOptionPane.YES_NO_OPTION);
+        if (resposta != JOptionPane.YES_OPTION) {
             return;
         }
 
         try {
-            servico.remover(selecionado.getCodigo());
-            atualizarTabela();
+            servico.remover(produto.getCodigo());
+            atualizar();
         } catch (LojaException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    // Produto da linha selecionada, ou null se não houver seleção.
+    // A tela pode estar ordenada ou filtrada, então o índice precisa ser convertido para o do modelo
+    private Produto produtoSelecionado() {
+        int linhaNaTela = tabela.getSelectedRow();
+        if (linhaNaTela < 0) {
+            return null;
+        }
+        int linhaNoModelo = tabela.convertRowIndexToModel(linhaNaTela);
+        return modelo.getProdutoAt(linhaNoModelo);
+    }
+
+    private void avisarSemSelecao() {
+        JOptionPane.showMessageDialog(this, "Selecione um produto na tabela.", "Aviso",
+                JOptionPane.INFORMATION_MESSAGE);
     }
 }
