@@ -120,6 +120,6 @@ java -cp out loja.app.Main
 ## Equipe e Divisão de Tarefas
 
 * **Stephany Fernandes Torres - 25.1.4022** — [GitHub](https://github.com/stephanyft)
-* **[PREENCHER Nome]** — *[PREENCHER módulo]*
+* **Maria Eduarda de Carvalho Silva - 25.1.4035** — [GitHub](https://github.com/mariaecs545)
 * **[PREENCHER Nome]** — *[PREENCHER módulo]*
 * **[PREENCHER Nome]** — *[PREENCHER módulo]*
