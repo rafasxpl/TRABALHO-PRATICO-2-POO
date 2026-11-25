@@ -23,19 +23,18 @@ public class PedidoServico {
     private final RepositorioPedidos repositorioPedidos;
     private final RepositorioProdutos repositorioProdutos;
     private final CalculadoraFrete calculadoraFrete = new CalculadoraFrete();
-
     public PedidoServico(RepositorioPedidos repositorioPedidos, RepositorioProdutos repositorioProdutos) {
         this.repositorioPedidos = repositorioPedidos;
         this.repositorioProdutos = repositorioProdutos;
     }
 
-    // Frete do carrinho atual (a telaCheckout usa para mostrar o resumo antes de confirmar)
+    // Frete do carrinho atual (a TelaCheckout usa para mostrar o resumo antes de confirmar)
     public double calcularFrete(Carrinho carrinho) {
         return calculadoraFrete.calcular(carrinho.getItens(), carrinho.getSubtotal());
     }
 
     /*
-    Fecha a compra: confere estoque, da baixa, calcula frete e total, grava o pedido e esvazia o carrinho
+    Fecha a compra: confere estoque, dá baixa, calcula frete e total, grava o pedido e esvazia o carrinho
     A situação inicial vem da forma de pagamento (Pix/cartão = PAGO, boleto = AGUARDANDO_PAGAMENTO)
     */
     public Pedido finalizar(Cliente cliente, FormaPagamento pagamento) throws LojaException {
@@ -79,12 +78,35 @@ public class PedidoServico {
         Pedido pedido = new Pedido(repositorioPedidos.proximoNumero(), cliente, itensPedido,
             subtotal, frete, total, pagamento, pagamento.getStatusInicial(), LocalDateTime.now());
 
-        // 4) grava e limpa o carrinho
-        repositorioPedidos.adicionar(pedido);
-        repositorioPedidos.salvar();
-        repositorioProdutos.salvar();
+        // 4) grava, se a gravação falhar, desfaz tudo (estoque devolvido e pedido retirado da lista)
+        try {
+            repositorioPedidos.adicionar(pedido);
+            repositorioPedidos.salvar();
+            repositorioProdutos.salvar();
+        } catch (LojaException e) {
+            desfazerFinalizacao(pedido, itensPedido);
+            throw e;
+        }
+
+        // 5) só esvazia o carrinho depois que tudo deu certo
         carrinho.esvaziar();
         return pedido;
+    }
+
+    // Todos os pedidos (usado pelo PainelPedidos e pelo RelatorioServico)
+    public List<Pedido> listar() {
+        return repositorioPedidos.listar();
+    }
+
+    // Pedidos que estão em determinada situação
+    public List<Pedido> listarPorStatus(StatusPedido status) {
+        List<Pedido> resultado = new ArrayList<>();
+        for (Pedido pedido : repositorioPedidos.listar()) {
+            if (pedido.getStatus() == status) {
+                resultado.add(pedido);
+            }
+        }
+        return resultado;
     }
 
     // Cancela pedido AGUARDANDO_PAGAMENTO ou PAGO (CANCELADO não cancela de novo) e devolve o estoque
@@ -114,8 +136,8 @@ public class PedidoServico {
     }
 
     /*
-    Muda a situação do pedido
-    AGUARDANDO_PAGAMENTO -> PAGO e AGUARDANDO_PAGAMENTO/PAGO -> CANCELADO
+    Muda a situação do pedido. Fluxo permitido:
+    AGUARDANDO_PAGAMENTO -> PAGO (confirmar pagamento) e AGUARDANDO_PAGAMENTO/PAGO -> CANCELADO
     */
     public void atualizarStatus(Pedido pedido, StatusPedido novo) throws LojaException {
         exigirPedido(pedido);
@@ -131,6 +153,20 @@ public class PedidoServico {
                 + "\" para \"" + novo.getDescricao() + "\" não é permitida.");
         }
     }
+
+    // Devolve o estoque baixado e tenta tirar o pedido da lista/arquivo
+    private void desfazerFinalizacao(Pedido pedido, List<ItemPedido> itens) {
+        for (ItemPedido item : itens) {
+            item.getProduto().reporEstoque(item.getQuantidade());
+        }
+        try {
+            repositorioPedidos.remover(pedido);
+            repositorioPedidos.salvar();
+        } catch (LojaException ignorada) {
+            // já estamos tratando uma falha, o erro original é o que será mostrado
+        }
+    }
+
     private void exigirPedido(Pedido pedido) throws DadoInvalidoException {
         if (pedido == null) {
             throw new DadoInvalidoException("Pedido não informado.");
