@@ -8,15 +8,6 @@ import loja.modelo.usuario.Administrador;
 import loja.modelo.usuario.Cliente;
 import loja.modelo.usuario.Usuario;
 
-/**
- * Repositório de usuários. Mantém, além da lista herdada, um índice
- * (Map&lt;login, Usuario&gt;) para que buscarPorLogin seja rápido mesmo com
- * muitos usuários cadastrados.
- *
- * Formato de cada linha (campos separados por ';'):
- * ADMIN;id;nome;login;senha
- * CLIENTE;id;nome;login;senha;cpf;email;endereco
- */
 public class RepositorioUsuarios extends Repositorio<Usuario> {
 
     private final Map<String, Usuario> indicePorLogin = new HashMap<>();
@@ -37,7 +28,7 @@ public class RepositorioUsuarios extends Repositorio<Usuario> {
         indicePorLogin.put(usuario.getLogin(), usuario);
     }
 
-    /** Devolve o usuário com esse login, ou null se não existir. */
+    // Devolve o usuario com esse login, ou null se nao existir
     public Usuario buscarPorLogin(String login) {
         return indicePorLogin.get(login);
     }
