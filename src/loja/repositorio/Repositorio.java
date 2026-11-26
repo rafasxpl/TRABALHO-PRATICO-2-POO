@@ -6,18 +6,7 @@ import java.util.List;
 
 import loja.excecao.PersistenciaException;
 
-/**
- * Superclasse abstrata e GENÉRICA de todos os repositórios. Guarda os itens
- * em uma lista em memória e sabe carregar/salvar essa lista em um arquivo de
- * texto, delegando às subclasses apenas a parte que muda de um tipo para o
- * outro: como transformar uma linha de texto em objeto (deLinha) e um
- * objeto em linha de texto (paraLinha) - POLIMORFISMO.
- *
- * NOTA DE INTEGRAÇÃO: pacote de responsabilidade do MEMBRO 2. Implementação
- * genérica para o Membro 4 compilar e testar as telas do cliente.
- *
- * @param <T> o tipo de objeto guardado (Produto, Usuario ou Pedido)
- */
+
 public abstract class Repositorio<T> {
 
     protected List<T> itens = new ArrayList<>();
@@ -27,13 +16,13 @@ public abstract class Repositorio<T> {
         this.caminhoArquivo = caminhoArquivo;
     }
 
-    /** Converte uma linha do arquivo de texto no objeto correspondente. */
+    // Converte uma linha do arquivo de texto no objeto correspondente
     protected abstract T deLinha(String linha) throws PersistenciaException;
 
-    /** Converte um objeto em uma linha de texto para gravar no arquivo. */
+    // Converte um objeto em uma linha de texto para gravar no arquivo
     protected abstract String paraLinha(T item);
 
-    /** Lê o arquivo de texto e recarrega a lista em memória (lista fica vazia se o arquivo não existir). */
+    // o arquivo de texto e recarrega a lista em memoria (lista fica vazia se o arquivo nao existir)
     public void carregar() throws PersistenciaException {
         itens.clear();
         List<String> linhas = ArquivoTexto.lerLinhas(caminhoArquivo);
@@ -45,7 +34,7 @@ public abstract class Repositorio<T> {
         }
     }
 
-    /** Grava a lista em memória no arquivo de texto, sobrescrevendo o conteúdo anterior. */
+    // Grava a lista em memoria no arquivo de texto, sobrescrevendo o conteudo anterior
     public void salvar() throws PersistenciaException {
         List<String> linhas = new ArrayList<>();
         for (T item : itens) {
@@ -62,7 +51,7 @@ public abstract class Repositorio<T> {
         itens.remove(item);
     }
 
-    /** Lista não modificável dos itens em memória (ENCAPSULAMENTO). */
+    // Lista nao modificavel dos itens em memoria
     public List<T> listar() {
         return Collections.unmodifiableList(itens);
     }
