@@ -75,25 +75,48 @@ public class RepositorioProdutos {
         produtos.remove(produto);
     }
 
-    // Altera um produto existente
-    public void alterar(Produto produto)
-            throws DadoInvalidoException, ProdutoNaoEncontradoException {
+// Altera os dados de um produto sem substituir o objeto existente
+public void alterar(Produto produto)
+        throws DadoInvalidoException, ProdutoNaoEncontradoException {
 
-        if (produto == null) {
-            throw new DadoInvalidoException("Produto não informado.");
-        }
+    if (produto == null) {
+        throw new DadoInvalidoException("Produto não informado.");
+    }
 
-        for (int i = 0; i < produtos.size(); i++) {
-            if (produtos.get(i).getCodigo() == produto.getCodigo()) {
-                produtos.set(i, produto);
-                return;
-            }
-        }
+    Produto atual = buscarPorCodigo(produto.getCodigo());
 
-        throw new ProdutoNaoEncontradoException(
-            "Produto de código " + produto.getCodigo() + " não encontrado."
+    // Não permite transformar produto físico em digital ou vice-versa
+    if (atual instanceof ProdutoFisico && produto instanceof ProdutoFisico) {
+
+        ProdutoFisico atualFisico = (ProdutoFisico) atual;
+        ProdutoFisico novoFisico = (ProdutoFisico) produto;
+
+        atual.setNome(novoFisico.getNome());
+        atual.setDescricao(novoFisico.getDescricao());
+        atual.setCategoria(novoFisico.getCategoria());
+        atual.setPreco(novoFisico.getPreco());
+
+        atualFisico.setPesoKg(novoFisico.getPesoKg());
+  
+
+    } else if (atual instanceof ProdutoDigital && produto instanceof ProdutoDigital) {
+
+        ProdutoDigital atualDigital = (ProdutoDigital) atual;
+        ProdutoDigital novoDigital = (ProdutoDigital) produto;
+
+        atual.setNome(novoDigital.getNome());
+        atual.setDescricao(novoDigital.getDescricao());
+        atual.setCategoria(novoDigital.getCategoria());
+        atual.setPreco(novoDigital.getPreco());
+
+        atualDigital.setTamanhoArquivoMb(novoDigital.getTamanhoArquivoMb());
+
+    } else {
+        throw new DadoInvalidoException(
+            "Não é possível alterar o tipo de um produto existente."
         );
     }
+}
 
     // Retorna a lista de produtos sem permitir alterações externas
     public List<Produto> listar() {
