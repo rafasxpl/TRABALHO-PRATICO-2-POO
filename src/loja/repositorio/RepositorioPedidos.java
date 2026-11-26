@@ -17,18 +17,7 @@ import loja.modelo.produto.Produto;
 import loja.modelo.usuario.Cliente;
 import loja.modelo.usuario.Usuario;
 
-/**
- * Repositório de pedidos. Diferente de RepositorioProdutos e
- * RepositorioUsuarios, para reconstruir um Pedido a partir do arquivo de
- * texto é preciso "religar" as referências para o Cliente e os Produtos
- * daquele pedido - por isso este repositório recebe os outros dois no
- * construtor.
- *
- * Formato de cada linha (campos separados por ';'):
- * numero;loginDoCliente;status;data(AAAA-MM-DD);subtotal;frete;total;formaPagamento;itens
- * - formaPagamento: "PIX", "BOLETO" ou "CARTAO,numeroDeParcelas"
- * - itens: "codigo:quantidade:precoUnitario" separados por '|'
- */
+
 public class RepositorioPedidos extends Repositorio<Pedido> {
 
     private final RepositorioProdutos repositorioProdutos;
@@ -41,7 +30,7 @@ public class RepositorioPedidos extends Repositorio<Pedido> {
         this.repositorioUsuarios = repositorioUsuarios;
     }
 
-    /** Próximo número de pedido disponível (maior número já usado + 1). */
+    // Proximo numero de pedido disponivel (maior numero ja usado + 1)
     public int proximoNumero() {
         int maior = 0;
         for (Pedido pedido : itens) {
