@@ -247,3 +247,44 @@ public void alterar(Produto produto)
         }
     }
 }
+   public List<Produto> listarPorCategoria(String categoria) {
+        List<Produto> resultado = new ArrayList<>();
+        for (Produto produto : itens) {
+            if (produto.getCategoria().equalsIgnoreCase(categoria)) {
+                resultado.add(produto);
+            }
+        }
+        return resultado;
+    }
+
+    @Override
+    protected Produto deLinha(String linha) throws PersistenciaException {
+        String[] campos = linha.split(";", -1);
+        try {
+            String tipo = campos[0];
+            int codigo = Integer.parseInt(campos[1]);
+            String nome = campos[2];
+            String descricao = campos[3];
+            String categoria = campos[4];
+            double preco = Double.parseDouble(campos[5]);
+
+            if ("FISICO".equals(tipo)) {
+                double peso = Double.parseDouble(campos[6]);
+                int estoque = Integer.parseInt(campos[7]);
+                return new ProdutoFisico(codigo, nome, descricao, categoria, preco, peso, estoque);
+            } else if ("DIGITAL".equals(tipo)) {
+                double tamanho = Double.parseDouble(campos[6]);
+                String link = campos[7];
+                return new ProdutoDigital(codigo, nome, descricao, categoria, preco, tamanho, link);
+            }
+            throw new PersistenciaException("Tipo de produto desconhecido na linha: " + linha);
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            throw new PersistenciaException("Linha de produto corrompida: " + linha, e);
+        }
+    }
+
+    @Override
+    protected String paraLinha(Produto produto) {
+        return produto.paraLinha();
+    }
+}
