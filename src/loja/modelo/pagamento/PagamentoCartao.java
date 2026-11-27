@@ -56,6 +56,6 @@ public class PagamentoCartao extends FormaPagamento {
 
     @Override
     public String paraLinha() {
-        return "CARTAO;" + parcelas;
+        return "CARTAO:" + parcelas;
     }
 }

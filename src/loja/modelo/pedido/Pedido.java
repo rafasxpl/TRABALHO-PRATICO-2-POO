@@ -62,7 +62,7 @@ public class Pedido {
         return total;
     }
 
-    public FormaPagamento getPagamento() {
+    public FormaPagamento getFormaPagamento() {
         return pagamento;
     }
 
